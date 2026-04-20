@@ -1,0 +1,436 @@
+import { useState, useEffect } from 'react';
+import { useStore } from '../store/useStore';
+import { ShoppingCart, Search, Plus, Minus, Trash2, Banknote, RefreshCcw, Moon, Sun, ArrowRightLeft, X, Printer } from 'lucide-react';
+
+export default function POS() {
+  const { products, categories, cart, addToCart, removeFromCart, updateQuantity, clearCart, checkout, processReturn, storeSettings, orders, activeInvoiceId, customers } = useStore();
+  
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Customer details for checkout
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showReturnsModal, setShowReturnsModal] = useState(false);
+  const [returnSearchQuery, setReturnSearchQuery] = useState('');
+  const [activeReturnOrder, setActiveReturnOrder] = useState<any>(null);
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
+  const toggleTheme = () => setIsDarkMode(!isDarkMode);
+
+  const handleSearchOrder = () => {
+    const order = orders.find(o => o.id.toLowerCase() === returnSearchQuery.toLowerCase());
+    if (order) {
+      setActiveReturnOrder(order);
+    } else {
+      alert("لم يتم العثور على فاتورة بهذا الرقم");
+      setActiveReturnOrder(null);
+    }
+  };
+
+  const handleReturnItem = async (productId: string) => {
+    if (activeReturnOrder) {
+      const qs = prompt("أدخل الكمية المراد استرجاعها:");
+      const qty = parseInt(qs || '0', 10);
+      if (!isNaN(qty) && qty > 0) {
+        const success = await processReturn(activeReturnOrder.id, productId, qty);
+        if (success) {
+          alert('تم استرجاع المنتجات بنجاح وإعادتها للمخزون');
+          const updatedOrder = useStore.getState().orders.find(o => o.id === activeReturnOrder.id);
+          setActiveReturnOrder(updatedOrder);
+        } else {
+          alert("الكمية غير صحيحة أو تم استرجاعها مسبقاً بالكامل");
+        }
+      }
+    }
+  };
+
+  const doCheckout = async (shouldPrint: boolean) => {
+    const currentCart = [...cart];
+    const currentSubtotal = subtotal;
+    const currentTax = tax;
+    const currentTotal = total;
+    const currentCustomerName = customerName;
+    const currentCustomerPhone = customerPhone;
+    const currentSettings = { ...storeSettings };
+
+    const invoiceId = await checkout(currentTotal, { name: currentCustomerName, phone: currentCustomerPhone });
+    setCustomerName('');
+    setCustomerPhone('');
+
+    if (shouldPrint) {
+      const printDate = new Date().toLocaleString('ar-SA');
+      const itemsHtml = currentCart.map(item =>
+        `<tr>
+          <td style="padding:6px 4px;border-bottom:1px dashed #ddd;font-size:13px;">${item.name}</td>
+          <td style="padding:6px 4px;border-bottom:1px dashed #ddd;text-align:center;font-size:13px;">${item.quantity}</td>
+          <td style="padding:6px 4px;border-bottom:1px dashed #ddd;text-align:left;font-size:13px;">${(item.sale_price * item.quantity).toFixed(2)}</td>
+        </tr>`
+      ).join('');
+
+      const customerBlock = (currentCustomerName || currentCustomerPhone)
+        ? `<div class="customer-box"><strong>العميل:</strong> ${currentCustomerName || '—'} &nbsp;|&nbsp; <strong>هاتف:</strong> <span dir="ltr">${currentCustomerPhone || '—'}</span></div>`
+        : '';
+
+      const html = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8"/>
+  <title>فاتورة #${invoiceId}</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;width:320px;margin:0 auto;padding:16px;}
+    .header{text-align:center;border-bottom:2px dashed #333;padding-bottom:12px;margin-bottom:12px;}
+    .logo{width:64px;height:64px;object-fit:cover;border-radius:12px;margin-bottom:6px;}
+    .store-name{font-size:18px;font-weight:900;margin-bottom:4px;}
+    .store-info{font-size:11px;color:#555;line-height:1.7;}
+    .invoice-meta{display:flex;justify-content:space-between;font-size:11px;color:#555;margin:8px 0;background:#f5f5f5;padding:6px 8px;border-radius:6px;}
+    .customer-box{background:#f0f4ff;border-radius:6px;padding:6px 10px;font-size:12px;margin-bottom:8px;border-right:3px solid #6366f1;}
+    table{width:100%;border-collapse:collapse;}
+    thead th{font-size:12px;color:#888;padding:4px;border-bottom:2px solid #eee;text-align:right;}
+    thead th:last-child{text-align:left;}
+    .totals{margin-top:10px;border-top:2px dashed #333;padding-top:10px;}
+    .total-row{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;}
+    .grand-total{font-size:17px;font-weight:900;border-top:1px solid #ddd;margin-top:6px;padding-top:8px;}
+    .footer{text-align:center;margin-top:16px;font-size:12px;color:#888;border-top:2px dashed #bbb;padding-top:10px;}
+    @media print{@page{margin:4mm;size:80mm auto;}}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img class="logo" src="${currentSettings.logo}" onerror="this.style.display='none'" />
+    <div class="store-name">${currentSettings.name}</div>
+    <div class="store-info">
+      ${currentSettings.address ? `${currentSettings.address}<br/>` : ''}
+      ${currentSettings.phone ? `هاتف: ${currentSettings.phone}` : ''}
+      ${currentSettings.phone2 ? ` | ${currentSettings.phone2}` : ''}
+    </div>
+  </div>
+  <div class="invoice-meta">
+    <span>رقم الفاتورة: <strong>${invoiceId}</strong></span>
+    <span>${printDate}</span>
+  </div>
+  ${customerBlock}
+  <table>
+    <thead><tr>
+      <th>المنتج</th>
+      <th style="text-align:center">كمية</th>
+      <th style="text-align:left">إجمالي</th>
+    </tr></thead>
+    <tbody>${itemsHtml}</tbody>
+  </table>
+  <div class="totals">
+    <div class="total-row"><span>المجموع الفرعي:</span><span>${currentSubtotal.toFixed(2)} ${currentSettings.currency}</span></div>
+    <div class="total-row"><span>الضريبة (${currentSettings.taxRate}%):</span><span>${currentTax.toFixed(2)} ${currentSettings.currency}</span></div>
+    <div class="total-row grand-total"><span>الإجمالي:</span><span>${currentTotal.toFixed(2)} ${currentSettings.currency}</span></div>
+  </div>
+  <div class="footer">شكراً لتعاملكم ♥</div>
+  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
+</body></html>`;
+
+      const pw = window.open('', '_blank', 'width=400,height=750');
+      if (pw) { pw.document.write(html); pw.document.close(); }
+    } else {
+      alert(`تم الدفع بنجاح!\nرقم الفاتورة: ${invoiceId}`);
+    }
+  };
+
+  const filteredProducts = products.filter(
+    (p) =>
+      (activeCategory === 'all' || p.category_id === activeCategory) &&
+      p.name.includes(searchQuery)
+  );
+
+  const subtotal = cart.reduce((sum, item) => sum + item.sale_price * item.quantity, 0);
+  const tax = subtotal * (storeSettings.taxRate / 100);
+  const total = subtotal + tax;
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const phone = e.target.value;
+    setCustomerPhone(phone);
+    const existingCust = customers.find(c => c.phone === phone);
+    if (existingCust) {
+      setCustomerName(existingCust.name);
+    }
+  };
+
+  return (
+    <div className="flex h-screen bg-gray-50 dark:bg-slate-900 transition-colors duration-300 overflow-hidden font-sans text-gray-900 dark:text-gray-100">
+      
+      {showReturnsModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col border border-gray-200 dark:border-slate-700">
+            <div className="p-6 bg-gradient-to-r from-red-500 to-orange-500 text-white flex justify-between items-center">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <ArrowRightLeft size={24} /> نظام المرتجعات
+              </h2>
+              <button onClick={() => setShowReturnsModal(false)} className="hover:bg-white/20 p-2 rounded-full transition">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 flex-1 flex flex-col gap-4">
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  placeholder="أدخل رقم الفاتورة للبحث..." 
+                  className="flex-1 bg-gray-100 dark:bg-slate-700 dark:text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500 font-mono text-left"
+                  dir="ltr"
+                  value={returnSearchQuery}
+                  onChange={(e) => setReturnSearchQuery(e.target.value)}
+                />
+                <button onClick={handleSearchOrder} className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-bold transition shadow-lg shrink-0">بحث برقم الفاتورة</button>
+              </div>
+
+              {activeReturnOrder && (
+                <div className="mt-4 flex-1 border border-gray-200 dark:border-slate-700 flex flex-col rounded-xl overflow-hidden">
+                  <div className="bg-gray-100 dark:bg-slate-700 p-4 flex justify-between items-center border-b border-gray-200 dark:border-slate-600">
+                    <span className="font-bold text-gray-700 dark:text-gray-200 font-mono tracking-wider">{activeReturnOrder.id}</span>
+                    <span className="text-sm font-bold text-gray-500 dark:text-gray-300">الإجمالي: {activeReturnOrder.total.toFixed(2)} {storeSettings.currency}</span>
+                  </div>
+                  <div className="p-4 space-y-3 max-h-72 overflow-y-auto hide-scrollbar">
+                    {activeReturnOrder.items.map((item: any) => (
+                      <div key={item.id} className="flex justify-between items-center p-4 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-600 rounded-xl shadow-sm">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-md text-gray-800 dark:text-gray-100">{item.name}</span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400 mt-1">الكمية المسجلة: {item.quantity} | المسترجع: <span className="text-red-500 font-bold">{item.returned_quantity}</span></span>
+                        </div>
+                        <button 
+                          disabled={item.quantity === item.returned_quantity}
+                          onClick={() => handleReturnItem(item.id)} 
+                          className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 px-5 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50 transition border border-red-100 dark:border-red-900/50"
+                        >إرجاع</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col h-full bg-white dark:bg-slate-900 shadow-2xl z-10 w-2/3">
+        <header className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
+          <div className="flex items-center gap-4">
+            <img src={storeSettings.logo} alt="Logo" className="w-12 h-12 object-cover rounded-xl shadow-md border border-gray-100 dark:border-slate-700 bg-white p-1" />
+            <h1 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-l from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
+              {storeSettings.name}
+            </h1>
+          </div>
+          <div className="flex items-center gap-4 flex-1 max-w-lg ml-6">
+            <div className="relative w-full">
+              <Search className="absolute right-4 top-3.5 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="ابحث باسم المنتج..."
+                className="w-full bg-slate-100 dark:bg-slate-800 dark:text-white border-none rounded-2xl py-3.5 pr-12 pl-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner transition"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <button onClick={() => setShowReturnsModal(true)} className="flex items-center gap-2 px-5 py-3.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 rounded-2xl font-bold transition border border-red-100 dark:border-red-900/30 whitespace-nowrap shadow-sm">
+              <RefreshCcw size={18} /> مرتجع
+            </button>
+            <button onClick={toggleTheme} className="p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 transition shadow-sm">
+              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+          </div>
+        </header>
+
+        {/* Categories Tabs */}
+        <div className="flex gap-3 p-5 overflow-x-auto border-b border-gray-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 hide-scrollbar items-center">
+          <button
+            onClick={() => setActiveCategory('all')}
+            className={`px-6 py-2.5 rounded-2xl whitespace-nowrap font-bold transition shadow-sm border ${
+              activeCategory === 'all' 
+              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-transparent' 
+              : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700'
+            }`}
+          >
+            الكل
+          </button>
+          {categories.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setActiveCategory(c.id)}
+              className={`px-6 py-2.5 rounded-2xl whitespace-nowrap font-bold transition shadow-sm border ${
+                activeCategory === c.id 
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-transparent' 
+                : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700'
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Product Catalog Grid */}
+        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 dark:bg-slate-900 border-l border-gray-100 dark:border-slate-800 relative">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {filteredProducts.map((product) => {
+              const isOutOfStock = product.stock_quantity <= 0;
+              const isLowStock = product.stock_quantity > 0 && product.stock_quantity < 5;
+              
+              return (
+                <div
+                  key={product.id}
+                  onClick={() => addToCart(product)}
+                  className={`bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-xl cursor-pointer transition-all duration-300 transform hover:-translate-y-1 flex flex-col justify-between h-48 border border-gray-100 dark:border-slate-700 ring-1 ring-black/5 dark:ring-white/5 relative overflow-hidden group ${isOutOfStock ? 'opacity-60 cursor-not-allowed grayscale' : ''}`}
+                >
+                  <div className={`absolute top-0 right-0 rounded-bl-3xl rounded-tr-xl px-4 py-1.5 text-xs font-bold text-white shadow-sm transition-colors ${isOutOfStock ? 'bg-slate-500' : isLowStock ? 'bg-red-500' : 'bg-green-500 dark:bg-green-600 group-hover:bg-green-600'}`}>
+                    {isOutOfStock ? 'نفذت الكمية' : `المخزون: ${product.stock_quantity}`}
+                  </div>
+
+                  <div className="pt-3">
+                    <h3 className="font-bold text-gray-800 dark:text-gray-100 line-clamp-2 leading-tight text-lg">{product.name}</h3>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 font-mono">{product.barcode}</p>
+                  </div>
+                  <div className="flex items-end justify-between mt-4">
+                    <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">{product.sale_price} <span className="text-sm text-gray-500 dark:text-gray-400">{storeSettings.currency}</span></span>
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border transition-all ${isOutOfStock ? 'bg-gray-100 text-gray-400 border-gray-200 dark:bg-slate-700 dark:border-slate-600' : 'bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-slate-700 dark:text-indigo-400 dark:border-slate-600 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600'}`}>
+                      <Plus size={20} strokeWidth={3}/>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Cart Sidebar */}
+      <div className="w-1/3 min-w-[420px] bg-white dark:bg-slate-800 flex flex-col z-20 shadow-2xl relative border-r border-gray-100 dark:border-slate-800">
+        <div className="p-6 bg-gradient-to-bl from-indigo-700 via-indigo-600 to-purple-800 text-white flex flex-col justify-between relative overflow-hidden h-36 rounded-bl-[40px] shadow-lg shadow-indigo-900/20">
+          <div className="absolute top-0 left-0 w-full h-full bg-white/5 backdrop-blur-sm"></div>
+          <div className="relative flex justify-between items-start">
+             <h2 className="text-2xl font-black flex items-center gap-3">
+              <ShoppingCart size={28} />
+              الفاتورة الحالية
+            </h2>
+            <div className="bg-black/25 px-4 py-2 rounded-xl text-sm font-bold backdrop-blur-md border border-white/20 flex items-center">
+               {cart.length} الأصناف
+            </div>
+          </div>
+          <div className="relative font-mono text-indigo-100 mt-auto flex items-center gap-2 bg-black/10 w-max px-3 py-1.5 rounded-lg border border-white/10">
+            <span className="uppercase text-xs tracking-wider opacity-80 font-sans">رقم الفاتورة:</span> <span className="font-bold tracking-widest">{activeInvoiceId}</span>
+          </div>
+        </div>
+
+        {/* Cart Listing */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50 dark:bg-slate-900/50" style={{ scrollbarWidth: 'thin' }}>
+          {cart.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-600 transition-opacity opacity-70">
+              <ShoppingCart size={90} className="mb-6 opacity-30 drop-shadow-md" />
+              <p className="text-2xl font-semibold">السلة فارغة</p>
+              <p className="text-sm mt-2 opacity-70">أضف بعض المنتجات للبدء بحساب الفاتورة.</p>
+            </div>
+          ) : (
+            cart.map((item) => (
+              <div key={item.id} className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col gap-3 relative overflow-hidden group hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start">
+                  <h4 className="font-bold text-gray-800 dark:text-gray-100 leading-tight w-4/5 text-base">{item.name}</h4>
+                  <button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-600 dark:text-red-500 transition-colors bg-red-50 dark:bg-red-900/20 p-2.5 rounded-xl opacity-0 group-hover:opacity-100 absolute left-4 top-4 border border-transparent hover:border-red-100 dark:hover:border-red-900/50">
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between pt-3 mt-1 border-t border-gray-50 dark:border-slate-700/50">
+                  <span className="font-black text-xl text-indigo-600 dark:text-indigo-400">{(item.sale_price * item.quantity).toFixed(2)} <span className="text-xs text-gray-500">{storeSettings.currency}</span></span>
+                  <div className="flex items-center bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl p-1 shadow-inner">
+                    <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="p-2 hover:bg-white dark:hover:bg-slate-600 rounded-lg text-gray-600 dark:text-gray-300 transition-colors shadow-sm">
+                      <Minus size={16} strokeWidth={3}/>
+                    </button>
+                    <span className="w-10 text-center text-base font-bold dark:text-white">{item.quantity}</span>
+                    <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="p-2 hover:bg-white dark:hover:bg-slate-600 rounded-lg text-gray-600 dark:text-gray-300 transition-colors shadow-sm">
+                      <Plus size={16} strokeWidth={3}/>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Customer Details */}
+        <div className="bg-slate-50 dark:bg-slate-800/80 p-4 border-t border-gray-100 dark:border-slate-700 z-10">
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="text-xs text-slate-500 mb-1 block font-bold">رقم تليفون العميل <span className="font-normal">(اختياري)</span></label>
+              <input 
+                type="text" 
+                dir="ltr" 
+                value={customerPhone} 
+                onChange={handlePhoneChange} 
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 py-2 px-3 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm focus:outline-none transition" 
+                placeholder="01xxxxxxxxx" 
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs text-slate-500 mb-1 block font-bold">اسم العميل</label>
+              <input 
+                type="text" 
+                value={customerName} 
+                onChange={e => setCustomerName(e.target.value)} 
+                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 py-2 px-3 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm focus:outline-none transition" 
+                placeholder="اسم العميل..." 
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Checkout */}
+        <div className="p-6 bg-white dark:bg-slate-800 border-t border-gray-100 dark:border-slate-700 z-10">
+          <div className="space-y-3 mb-6 bg-slate-50 dark:bg-slate-900/50 p-5 rounded-2xl border border-gray-100 dark:border-slate-700">
+            <div className="flex justify-between text-gray-500 dark:text-gray-400 font-semibold text-sm">
+               <span>المجموع الفرعي</span>
+              <span>{subtotal.toFixed(2)} {storeSettings.currency}</span>
+            </div>
+            <div className="flex justify-between text-gray-500 dark:text-gray-400 font-semibold text-sm pb-4 border-b border-gray-200 dark:border-slate-700">
+              <span>الضريبة ({storeSettings.taxRate}%)</span>
+              <span>{tax.toFixed(2)} {storeSettings.currency}</span>
+            </div>
+            <div className="flex justify-between text-3xl font-black text-gray-800 dark:text-gray-100 pt-2">
+              <span>الإجمالي</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
+                {total.toFixed(2)} <span className="text-lg text-gray-500 dark:text-gray-400 font-bold">{storeSettings.currency}</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <div className="flex gap-2">
+              <button
+                onClick={() => doCheckout(false)}
+                disabled={cart.length === 0}
+                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-slate-700 dark:disabled:to-slate-700 disabled:text-gray-500 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20 disabled:shadow-none text-base border border-transparent"
+              >
+                <Banknote size={22} />
+                تحصيل ودفع
+              </button>
+              <button
+                onClick={() => doCheckout(true)}
+                disabled={cart.length === 0}
+                className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:from-gray-300 disabled:to-gray-400 dark:disabled:from-slate-700 dark:disabled:to-slate-700 disabled:text-gray-500 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 disabled:shadow-none text-base border border-transparent"
+              >
+                <Printer size={22} />
+                دفع وطباعة
+              </button>
+            </div>
+            <button onClick={clearCart} disabled={cart.length === 0} className="w-full border-2 border-gray-100 dark:border-slate-700 text-gray-500 dark:text-gray-400 disabled:opacity-50 py-3 rounded-2xl font-bold hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 hover:border-red-100 dark:hover:border-red-900/30 transition-all">
+              إلغاء الطلب والتفريغ
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
