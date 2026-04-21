@@ -12,6 +12,7 @@ export default function POS() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [paidAmountStr, setPaidAmountStr] = useState('');
+  const [customerDebt, setCustomerDebt] = useState<number>(0);
   
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showReturnsModal, setShowReturnsModal] = useState(false);
@@ -70,6 +71,7 @@ export default function POS() {
     setCustomerName('');
     setCustomerPhone('');
     setPaidAmountStr('');
+    setCustomerDebt(0);
 
     if (shouldPrint) {
       const printDate = new Date().toLocaleString('ar-SA');
@@ -167,6 +169,12 @@ export default function POS() {
     const existingCust = customers.find(c => c.phone === phone);
     if (existingCust) {
       setCustomerName(existingCust.name);
+      
+      const cOrders = orders.filter(o => o.customer?.id === existingCust.id);
+      const cDebt = cOrders.reduce((sum, o) => sum + (o.total - o.paid_amount), 0);
+      setCustomerDebt(cDebt > 0 ? cDebt : 0);
+    } else {
+      setCustomerDebt(0);
     }
   };
 
@@ -317,25 +325,30 @@ export default function POS() {
 
       {/* Cart Sidebar */}
       <div className="w-1/3 min-w-[420px] bg-white dark:bg-slate-800 flex flex-col z-20 shadow-2xl relative border-r border-gray-100 dark:border-slate-800">
-        <div className="p-6 bg-gradient-to-bl from-indigo-700 via-indigo-600 to-purple-800 text-white flex flex-col justify-between relative overflow-hidden h-auto min-h-48 rounded-bl-[40px] shadow-lg shadow-indigo-900/20 gap-4">
+        <div className="p-4 bg-gradient-to-bl from-indigo-700 via-indigo-600 to-purple-800 text-white flex flex-col relative overflow-hidden h-auto rounded-bl-[40px] shadow-lg shadow-indigo-900/20 gap-3">
           <div className="absolute top-0 left-0 w-full h-full bg-white/5 backdrop-blur-sm"></div>
           <div className="relative flex justify-between items-start">
-             <h2 className="text-2xl font-black flex items-center gap-3">
-              <ShoppingCart size={28} />
-              الفاتورة الحالية
+             <h2 className="text-xl font-black flex items-center gap-2">
+              <ShoppingCart size={24} />
+              الفاتورة
             </h2>
-            <div className="bg-black/25 px-4 py-2 rounded-xl text-sm font-bold backdrop-blur-md border border-white/20 flex items-center">
-               {cart.length} الأصناف
+            <div className="flex items-center gap-2">
+              <div className="font-mono text-indigo-100 flex items-center gap-1.5 bg-black/10 px-2.5 py-1 rounded-lg border border-white/10 text-xs shadow-inner">
+                <span className="uppercase tracking-wider opacity-80 font-sans">رقم:</span> <span className="font-bold tracking-widest">{activeInvoiceId}</span>
+              </div>
+              <div className="bg-black/25 px-3 py-1 rounded-lg text-xs font-bold backdrop-blur-md border border-white/20 shadow-inner">
+                 {cart.length} الأصناف
+              </div>
             </div>
           </div>
-          <div className="relative flex gap-3 text-sm">
+          <div className="relative flex gap-3 text-sm mt-1">
             <div className="flex-1">
               <input 
                 type="text" 
                 dir="ltr" 
                 value={customerPhone} 
                 onChange={handlePhoneChange} 
-                className="w-full bg-white/20 border border-white/30 placeholder-white/60 py-2 px-3 rounded-lg focus:ring-2 focus:ring-white/50 focus:outline-none transition" 
+                className="w-full bg-white/20 border border-white/30 placeholder-white/60 py-2.5 px-3 rounded-lg focus:ring-2 focus:ring-white/50 focus:outline-none transition" 
                 placeholder="رقم الموبايل (اختياري)" 
               />
             </div>
@@ -344,14 +357,17 @@ export default function POS() {
                 type="text" 
                 value={customerName} 
                 onChange={e => setCustomerName(e.target.value)} 
-                className="w-full bg-white/20 border border-white/30 placeholder-white/60 py-2 px-3 rounded-lg focus:ring-2 focus:ring-white/50 focus:outline-none transition" 
+                className="w-full bg-white/20 border border-white/30 placeholder-white/60 py-2.5 px-3 rounded-lg focus:ring-2 focus:ring-white/50 focus:outline-none transition" 
                 placeholder="اسم العميل..." 
               />
             </div>
           </div>
-          <div className="relative font-mono text-indigo-100 flex items-center gap-2 bg-black/10 w-max px-3 py-1.5 rounded-lg border border-white/10 mt-2">
-            <span className="uppercase text-xs tracking-wider opacity-80 font-sans">رقم الفاتورة:</span> <span className="font-bold tracking-widest">{activeInvoiceId}</span>
-          </div>
+          {customerDebt > 0 && (
+            <div className="relative bg-orange-500/20 border border-orange-400/30 text-orange-100 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-between">
+              <span>تنبيه: هذا العميل عليه مديونية سابقة</span>
+              <span className="bg-orange-500 text-white px-2 py-0.5 rounded-md font-mono">{customerDebt.toFixed(2)} {storeSettings.currency}</span>
+            </div>
+          )}
         </div>
 
         {/* Cart Listing */}

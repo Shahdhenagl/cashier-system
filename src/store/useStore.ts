@@ -252,13 +252,19 @@ export const useStore = create<CashierStore>((set, get) => ({
     }
 
     // Insert order
-    await supabase.from('orders').insert({ 
+    const { error: orderError } = await supabase.from('orders').insert({ 
       id: invoiceId, 
       total, 
       paid_amount: paidAmount,
       type,
       customer_id: customerId 
     });
+
+    if (orderError) {
+      console.error("Order Insert Error:", orderError);
+      alert(`خطأ في الحفظ: ${orderError.message}`);
+      return invoiceId; // Exit maybe? or throw
+    }
 
     // Insert order items
     const itemsPayload = state.cart.map((item) => ({
@@ -270,7 +276,10 @@ export const useStore = create<CashierStore>((set, get) => ({
       returned_quantity: 0,
       sale_price: item.sale_price,
     }));
-    await supabase.from('order_items').insert(itemsPayload);
+    const { error: itemsError } = await supabase.from('order_items').insert(itemsPayload);
+    if (itemsError) {
+      console.error("Order Items Insert Error:", itemsError);
+    }
 
     // Update stock
     for (const item of state.cart) {
