@@ -1,14 +1,97 @@
 import { useState, useMemo } from 'react';
 // Updated finances logic to account for returns in debt calculation
 import { useStore } from '../../store/useStore';
-import { ArrowRightLeft, Search, User } from 'lucide-react';
+import { ArrowRightLeft, Search, User, Printer } from 'lucide-react';
 
 export default function Invoices() {
   const { orders, storeSettings } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [showReturnsOnly, setShowReturnsOnly] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
-  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+
+  const handlePrint = (order: any) => {
+    const printDate = new Date(order.date).toLocaleString('ar-SA');
+    const subtotal = order.items.reduce((sum: number, item: any) => sum + (item.sale_price * item.quantity), 0);
+    const taxValue = order.total - subtotal;
+    
+    const itemsHtml = order.items.map((item: any) =>
+      `<tr>
+        <td style="padding:6px 4px;border-bottom:1px dashed #ddd;font-size:13px;">${item.name}${item.returned_quantity > 0 ? ` <span style="color:red;font-size:10px;">(مرتجع: ${item.returned_quantity})</span>` : ''}</td>
+        <td style="padding:6px 4px;border-bottom:1px dashed #ddd;text-align:center;font-size:13px;">${item.quantity}</td>
+        <td style="padding:6px 4px;border-bottom:1px dashed #ddd;text-align:left;font-size:13px;">${(item.sale_price * item.quantity).toFixed(2)}</td>
+      </tr>`
+    ).join('');
+
+    const customerBlock = order.customer
+      ? `<div class="customer-box"><strong>العميل:</strong> ${order.customer.name} &nbsp;|&nbsp; <strong>هاتف:</strong> <span dir="ltr">${order.customer.phone}</span></div>`
+      : '';
+
+    const html = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8"/>
+  <title>فاتورة #${order.id}</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#111;width:320px;margin:0 auto;padding:16px;}
+    .header{text-align:center;border-bottom:2px dashed #333;padding-bottom:12px;margin-bottom:12px;}
+    .logo{width:64px;height:64px;object-fit:cover;border-radius:12px;margin-bottom:6px;}
+    .store-name{font-size:18px;font-weight:900;margin-bottom:4px;}
+    .store-info{font-size:11px;color:#555;line-height:1.7;}
+    .invoice-meta{display:flex;justify-content:space-between;font-size:11px;color:#555;margin:8px 0;background:#f5f5f5;padding:6px 8px;border-radius:6px;}
+    .customer-box{background:#f0f4ff;border-radius:6px;padding:6px 10px;font-size:12px;margin-bottom:8px;border-right:3px solid #6366f1;}
+    table{width:100%;border-collapse:collapse;}
+    thead th{font-size:12px;color:#888;padding:4px;border-bottom:2px solid #eee;text-align:right;}
+    thead th:last-child{text-align:left;}
+    .totals{margin-top:10px;border-top:2px dashed #333;padding-top:10px;}
+    .total-row{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;}
+    .grand-total{font-size:17px;font-weight:900;border-top:1px solid #ddd;margin-top:6px;padding-top:8px;}
+    .footer{text-align:center;margin-top:16px;font-size:12px;color:#888;border-top:2px dashed #bbb;padding-top:10px;}
+    @media print{@page{margin:4mm;size:80mm auto;}}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img class="logo" src="${storeSettings.logo}" onerror="this.style.display='none'" />
+    <div class="store-name">${storeSettings.name}</div>
+    <div class="store-info">
+      ${storeSettings.address ? `${storeSettings.address}<br/>` : ''}
+      ${storeSettings.phone ? `هاتف: ${storeSettings.phone}` : ''}
+      ${storeSettings.phone2 ? ` | ${storeSettings.phone2}` : ''}
+    </div>
+  </div>
+  <div class="invoice-meta">
+    <span>رقم الفاتورة: <strong>${order.id}</strong></span>
+    <span>${printDate}</span>
+  </div>
+  ${customerBlock}
+  <table>
+    <thead><tr>
+      <th>المنتج</th>
+      <th style="text-align:center">كمية</th>
+      <th style="text-align:left">إجمالي</th>
+    </tr></thead>
+    <tbody>${itemsHtml}</tbody>
+  </table>
+  <div class="totals">
+    <div class="total-row"><span>المجموع الفرعي:</span><span>${subtotal.toFixed(2)} ${storeSettings.currency}</span></div>
+    <div class="total-row"><span>الضريبة (${storeSettings.taxRate}%):</span><span>${taxValue.toFixed(2)} ${storeSettings.currency}</span></div>
+    <div class="total-row grand-total"><span>الإجمالي:</span><span>${order.total.toFixed(2)} ${storeSettings.currency}</span></div>
+    ${order.items.some((i:any) => i.returned_quantity > 0) ? `
+      <div class="total-row" style="color:red;font-weight:bold;">
+        <span>إجمالي المرتجع:</span>
+        <span>-${order.items.reduce((sum:number, i:any) => sum + (i.returned_quantity * i.sale_price), 0).toFixed(2)} ${storeSettings.currency}</span>
+      </div>
+    ` : ''}
+  </div>
+  <div class="footer">شكراً لتعاملكم ♥</div>
+  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
+</body></html>`;
+
+    const pw = window.open('', '_blank', 'width=400,height=600');
+    if (pw) { pw.document.write(html); pw.document.close(); }
+  };
 
   // Extract unique years from orders
   const years = useMemo(() => {
@@ -114,12 +197,13 @@ export default function Invoices() {
                 <th className="p-4 text-center text-green-600">المدفوع</th>
                 <th className="p-4 text-center text-red-500 font-black">الباقي عليه</th>
                 <th className="p-4 text-center">الحالة</th>
+                <th className="p-4 text-center">إجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center text-slate-400 text-lg font-bold">
+                  <td colSpan={10} className="p-12 text-center text-slate-400 text-lg font-bold">
                     لا يوجد فواتير تطابق بحثك حالياً.
                   </td>
                 </tr>
@@ -183,6 +267,16 @@ export default function Invoices() {
                             فاتورة مكتملة
                           </span>
                         )}
+                      </td>
+                      <td className="p-4 text-center">
+                        <button 
+                          onClick={() => handlePrint(order)}
+                          style={{ backgroundColor: storeSettings.themeColor + '10', color: storeSettings.themeColor }}
+                          className="p-2 rounded-lg hover:bg-opacity-20 transition-all shadow-sm border border-transparent hover:border-current"
+                          title="طباعة الفاتورة"
+                        >
+                          <Printer size={18} />
+                        </button>
                       </td>
                     </tr>
                   );
