@@ -3,7 +3,7 @@ import { useStore } from '../../store/useStore';
 import { Search } from 'lucide-react';
 
 export default function Customers() {
-  const { customers, orders } = useStore();
+  const { customers, orders, storeSettings } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredCustomers = customers.filter(c => 
