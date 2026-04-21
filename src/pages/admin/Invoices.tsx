@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+// Updated finances logic to account for returns in debt calculation
 import { useStore } from '../../store/useStore';
 import { ArrowRightLeft, Search, User } from 'lucide-react';
 
