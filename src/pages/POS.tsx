@@ -67,6 +67,11 @@ export default function POS() {
 
     const finalPaidAmount = paidAmountStr === '' ? currentTotal : parseFloat(paidAmountStr) || 0;
 
+    if (finalPaidAmount < currentTotal && (!currentCustomerName.trim() || !currentCustomerPhone.trim())) {
+      alert("عذراً، يجب تسجيل اسم ورقم هاتف العميل بالكامل (الاسم والموبايل) في حالة البيع بالآجل لحفظ المديونية.");
+      return;
+    }
+
     const invoiceId = await checkout(currentTotal, { name: currentCustomerName, phone: currentCustomerPhone }, finalPaidAmount, 'sale');
     setCustomerName('');
     setCustomerPhone('');
