@@ -126,7 +126,7 @@ export const useStore = create<CashierStore>((set, get) => ({
     try {
       const [settingsRes, categoriesRes, productsRes, customersRes, ordersRes, counterRes] =
         await Promise.all([
-          supabase.from('store_settings').select('*').single(),
+          supabase.from('store_settings').select('*').limit(1).maybeSingle(),
           supabase.from('categories').select('*').order('name'),
           supabase.from('products').select('*').order('name'),
           supabase.from('customers').select('*').order('created_at', { ascending: false }),
@@ -135,7 +135,7 @@ export const useStore = create<CashierStore>((set, get) => ({
             .select('*, customers(*), order_items(*, products(*))')
             .order('created_at', { ascending: false })
             .limit(200),
-          supabase.from('invoice_counter').select('current_value').single(),
+          supabase.from('invoice_counter').select('current_value').limit(1).maybeSingle(),
         ]);
 
       const settings = settingsRes.data ? mapSettings(settingsRes.data as Record<string, unknown>) : get().storeSettings;
@@ -196,7 +196,7 @@ export const useStore = create<CashierStore>((set, get) => ({
 
   loadSettingsOnly: async () => {
     try {
-      const { data } = await supabase.from('store_settings').select('*').single();
+      const { data } = await supabase.from('store_settings').select('*').limit(1).maybeSingle();
       if (data) {
         set({ storeSettings: mapSettings(data as Record<string, unknown>) });
       }
@@ -399,7 +399,7 @@ export const useStore = create<CashierStore>((set, get) => ({
     if (newSettings.phone !== undefined) mapped.phone = newSettings.phone;
     if (newSettings.phone2 !== undefined) mapped.phone2 = newSettings.phone2;
 
-    await supabase.from('store_settings').update(mapped).eq('id', (await supabase.from('store_settings').select('id').single()).data?.id);
+    await supabase.from('store_settings').update(mapped).eq('id', (await supabase.from('store_settings').select('id').limit(1).maybeSingle()).data?.id);
     set((state) => ({ storeSettings: { ...state.storeSettings, ...newSettings } }));
     new BroadcastChannel('cashier-sync').postMessage('sync_settings');
   },
