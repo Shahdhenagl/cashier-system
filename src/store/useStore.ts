@@ -65,6 +65,7 @@ interface CashierStore {
 
   // Data loading
   loadAll: () => Promise<void>;
+  loadSettingsOnly: () => Promise<void>;
 
   // Cart
   addToCart: (product: Product) => void;
@@ -191,6 +192,15 @@ export const useStore = create<CashierStore>((set, get) => ({
     } catch (err) {
       set({ isLoading: false, dbError: String(err) });
     }
+  },
+
+  loadSettingsOnly: async () => {
+    try {
+      const { data } = await supabase.from('store_settings').select('*').single();
+      if (data) {
+        set({ storeSettings: mapSettings(data as Record<string, unknown>) });
+      }
+    } catch(e) { console.error(e); }
   },
 
   // ── Cart ───────────────────────────────────────────────────
@@ -391,6 +401,7 @@ export const useStore = create<CashierStore>((set, get) => ({
 
     await supabase.from('store_settings').update(mapped).eq('id', (await supabase.from('store_settings').select('id').single()).data?.id);
     set((state) => ({ storeSettings: { ...state.storeSettings, ...newSettings } }));
+    new BroadcastChannel('cashier-sync').postMessage('sync_settings');
   },
 
   addProduct: async (product) => {

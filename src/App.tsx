@@ -31,10 +31,18 @@ function ThemeInjector() {
 }
 
 function App() {
-  const { loadAll, isLoading, dbError } = useStore();
+  const { loadAll, loadSettingsOnly, isLoading, dbError } = useStore();
 
   useEffect(() => {
     loadAll();
+
+    const channel = new BroadcastChannel('cashier-sync');
+    channel.onmessage = (event) => {
+      if (event.data === 'sync_settings') {
+        loadSettingsOnly();
+      }
+    };
+    return () => channel.close();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
