@@ -143,35 +143,42 @@ export default function Analytics() {
   };
 
   const exportPDF = () => {
-    const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-    
-    // Support Arabic (Simplified - jspdf has issues with native Arabic without fonts, 
-    // but we'll use a standard layout and hope the user has a font or we'll use English labels for reliability)
-    doc.text('Sales Analytics Report', 105, 20, { align: 'center' });
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 30);
-    doc.text(`Period: ${timeRange}`, 20, 40);
+    try {
+      const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+      
+      doc.text('Sales Analytics Report', 105, 20, { align: 'center' });
+      doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 30);
+      doc.text(`Period: ${timeRange}`, 20, 40);
 
-    doc.autoTable({
-      startY: 50,
-      head: [['Metric', 'Value']],
-      body: [
-        ['Total Revenue', `${stats.revenue.toLocaleString()} ${storeSettings.currency}`],
-        ['Total Cost', `${stats.cost.toLocaleString()} ${storeSettings.currency}`],
-        ['Gross Profit', `${stats.profit.toLocaleString()} ${storeSettings.currency}`],
-        ['Profit Margin', `${stats.margin.toFixed(2)}%`],
-        ['Total Orders', stats.orderCount.toString()],
-      ],
-      theme: 'striped',
-    });
+      doc.autoTable({
+        startY: 50,
+        head: [['Metric', 'Value']],
+        body: [
+          ['Total Revenue', `${stats.revenue.toLocaleString()} ${storeSettings.currency}`],
+          ['Total Cost', `${stats.cost.toLocaleString()} ${storeSettings.currency}`],
+          ['Gross Profit', `${stats.profit.toLocaleString()} ${storeSettings.currency}`],
+          ['Profit Margin', `${stats.margin.toFixed(2)}%`],
+          ['Total Orders', stats.orderCount.toString()],
+        ],
+        theme: 'striped',
+        headStyles: { fillStyle: 'f', fillColor: [79, 70, 229] },
+      });
 
-    doc.text('Top 10 Selling Products', 20, doc.lastAutoTable.finalY + 15);
-    doc.autoTable({
-      startY: doc.lastAutoTable.finalY + 20,
-      head: [['Product', 'Qty', 'Revenue', 'Profit']],
-      body: stats.topProductsByQty.map(p => [p.name, p.qty, p.revenue.toLocaleString(), p.profit.toLocaleString()]),
-    });
+      const finalY = (doc as any).lastAutoTable.finalY || 100;
 
-    doc.save(`analytics_report_${new Date().toLocaleDateString()}.pdf`);
+      doc.text('Top 10 Selling Products', 20, finalY + 15);
+      doc.autoTable({
+        startY: finalY + 20,
+        head: [['Product', 'Qty', 'Revenue', 'Profit']],
+        body: stats.topProductsByQty.map(p => [p.name || 'Unknown', p.qty, p.revenue.toLocaleString(), p.profit.toLocaleString()]),
+        headStyles: { fillStyle: 'f', fillColor: [79, 70, 229] },
+      });
+
+      doc.save(`analytics_report_${new Date().toLocaleDateString()}.pdf`);
+    } catch (err) {
+      console.error("PDF Export Error:", err);
+      alert("حدث خطأ أثناء تصدير PDF. يرجى المحاولة مرة أخرى.");
+    }
   };
 
   if (loading) {
@@ -289,8 +296,8 @@ export default function Analytics() {
                   type="category" 
                   axisLine={false} 
                   tickLine={false} 
-                  width={100}
-                  style={{ fontSize: '12px', fontWeight: 'bold' }}
+                  width={150}
+                  style={{ fontSize: '14px', fontWeight: 'bold', fill: '#1e293b' }}
                 />
                 <Tooltip 
                   cursor={{ fill: '#f8fafc' }}
@@ -327,8 +334,8 @@ export default function Analytics() {
                   type="category" 
                   axisLine={false} 
                   tickLine={false} 
-                  width={100}
-                  style={{ fontSize: '12px', fontWeight: 'bold' }}
+                  width={150}
+                  style={{ fontSize: '14px', fontWeight: 'bold', fill: '#1e293b' }}
                 />
                 <Tooltip 
                   cursor={{ fill: '#f8fafc' }}
