@@ -9,6 +9,7 @@ import Invoices from './pages/admin/Invoices';
 import Customers from './pages/admin/Customers';
 import DeferredAccounts from './pages/admin/DeferredAccounts';
 import Settings from './pages/admin/Settings';
+import Analytics from './pages/admin/Analytics';
 import { useStore } from './store/useStore';
 
 function ThemeInjector() {
@@ -117,6 +118,7 @@ function App() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="overview" replace />} />
             <Route path="overview" element={<Overview />} />
+            <Route path="analytics" element={<Analytics />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="invoices" element={<Invoices />} />
             <Route path="customers" element={<Customers />} />

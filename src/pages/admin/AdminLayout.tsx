@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, Settings, LogOut, FileText, Users, BookUser } from 'lucide-react';
+import { LayoutDashboard, Package, Settings, LogOut, FileText, Users, BookUser, BarChart3 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
 export default function AdminLayout() {
@@ -8,6 +8,7 @@ export default function AdminLayout() {
 
   const navItems = [
     { name: 'نظرة عامة', path: '/admin/overview', icon: LayoutDashboard },
+    { name: 'التحليلات والتقارير', path: '/admin/analytics', icon: BarChart3 },
     { name: 'المخزون والمنتجات', path: '/admin/inventory', icon: Package },
     { name: 'الفواتير والمرتجعات', path: '/admin/invoices', icon: FileText },
     { name: 'قاعدة العملاء', path: '/admin/customers', icon: Users },

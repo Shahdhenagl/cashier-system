@@ -78,6 +78,7 @@ interface CashierStore {
   processReturn: (orderId: string, productId: string, returnQty: number) => Promise<boolean>;
 
   // Admin
+  loadAnalyticsData: (startDate?: string, endDate?: string) => Promise<Order[]>;
   updateSettings: (settings: Partial<StoreSettings>) => Promise<void>;
   addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
   updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
@@ -390,6 +391,54 @@ export const useStore = create<CashierStore>((set, get) => ({
   },
 
   // ── Admin ──────────────────────────────────────────────────
+  loadAnalyticsData: async (startDate, endDate) => {
+    let query = supabase
+      .from('orders')
+      .select('*, customers(*), order_items(*, products(*))')
+      .order('created_at', { ascending: false });
+
+    if (startDate) query = query.gte('created_at', startDate);
+    if (endDate) query = query.lte('created_at', endDate);
+
+    const { data, error } = await query.limit(1000);
+    if (error) {
+      console.error("Analytics Load Error:", error);
+      return [];
+    }
+
+    const orders: Order[] = (data as Record<string, unknown>[]).map((o) => {
+      const custRow = o.customers as Record<string, unknown> | null;
+      const itemRows = (o.order_items as Record<string, unknown>[]) ?? [];
+      const items: OrderItem[] = itemRows.map((i) => {
+        const prod = (i.products as Record<string, unknown>) ?? {};
+        return {
+          id: (i.product_id as string) ?? (i.id as string),
+          name: (i.product_name as string) ?? (prod.name as string) ?? '',
+          barcode: (prod.barcode as string) ?? '',
+          purchase_price: (prod.purchase_price as number) ?? 0,
+          sale_price: i.sale_price as number,
+          stock_quantity: (prod.stock_quantity as number) ?? 0,
+          category_id: (prod.category_id as string) ?? '',
+          quantity: i.quantity as number,
+          returned_quantity: (i.returned_quantity as number) ?? 0,
+        };
+      });
+      return {
+        id: o.id as string,
+        total: o.total as number,
+        paid_amount: (o.paid_amount as number) ?? (o.total as number),
+        type: (o.type as string) as 'sale' | 'payment' ?? 'sale',
+        date: o.created_at as string,
+        items,
+        customer: custRow
+          ? { id: custRow.id as string, name: custRow.name as string, phone: custRow.phone as string, timestamp: custRow.created_at as string }
+          : undefined,
+      };
+    });
+
+    return orders;
+  },
+
   updateSettings: async (newSettings) => {
     const mapped: Record<string, unknown> = {};
     if (newSettings.name !== undefined) mapped.name = newSettings.name;
