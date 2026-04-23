@@ -179,14 +179,21 @@ export default function POS() {
       const pw = window.open('', '_blank', 'width=400,height=750');
       if (pw) { pw.document.write(html); pw.document.close(); }
       
-      // WhatsApp sending with a small delay to avoid popup blockers
+      // WhatsApp sending with confirmation to avoid popup blockers
       if (currentCustomerPhone.trim()) {
-        setTimeout(() => sendWhatsApp(invoiceId), 1000);
+        setTimeout(() => {
+          if (confirm(`تم حفظ الفاتورة بنجاح رقم #${invoiceId}\n\nهل تريد إرسال نسخة للعميل عبر واتساب؟`)) {
+            sendWhatsApp(invoiceId);
+          }
+        }, 500);
       }
     } else {
-      alert(`تم الدفع بنجاح!\nرقم الفاتورة: ${invoiceId}`);
       if (currentCustomerPhone.trim()) {
-        sendWhatsApp(invoiceId);
+        if (confirm(`تم الدفع بنجاح رقم الفاتورة: ${invoiceId}\n\nهل تريد إرسالها للعميل عبر واتساب؟`)) {
+          sendWhatsApp(invoiceId);
+        }
+      } else {
+        alert(`تم الدفع بنجاح!\nرقم الفاتورة: ${invoiceId}`);
       }
     }
   };
