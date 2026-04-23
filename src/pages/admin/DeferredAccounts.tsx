@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useStore } from '../../store/useStore';
-import { BookUser, CreditCard, Search, Banknote, X } from 'lucide-react';
+import { BookUser, CreditCard, Search, Banknote, X, FileText, Table as TableIcon } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function DeferredAccounts() {
   const { customers, orders, storeSettings, checkout } = useStore();
@@ -30,6 +33,37 @@ export default function DeferredAccounts() {
   const filteredCustomers = customersWithDebt.filter(c => 
     c.name.includes(searchQuery) || c.phone.includes(searchQuery)
   );
+
+  const exportExcel = () => {
+    const wsData = [
+      ['تقرير حسابات الآجل', '', '', ''],
+      ['التاريخ', new Date().toLocaleDateString(), '', ''],
+      [''],
+      ['الاسم', 'رقم الهاتف', 'المديونية', 'عدد الفواتير'],
+      ...filteredCustomers.map(c => [
+        c.name,
+        c.phone,
+        c.totalDebt,
+        c.orders.length
+      ])
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Debts');
+    XLSX.writeFile(wb, `deferred_accounts_report_${new Date().toLocaleDateString()}.xlsx`);
+  };
+
+  const exportPDF = async () => {
+    const element = document.getElementById('deferred-table');
+    if (!element) return;
+    const canvas = await html2canvas(element, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`deferred_accounts_report_${new Date().toLocaleDateString()}.pdf`);
+  };
 
   const handleOpenModal = (customer: any) => {
     setSelectedCustomer(customer);
@@ -77,19 +111,35 @@ export default function DeferredAccounts() {
           </h1>
           <p className="text-slate-500 mt-2">إدارة العملاء المتعثرين وتسجيل الدفعات للفواتير الآجلة</p>
         </div>
-        <div className="relative w-full md:w-96">
-          <Search className="absolute right-4 top-3.5 text-slate-400" size={20} />
-          <input
-            type="text"
-            placeholder="ابحث برقم الهاتف أو اسم العميل..."
-            className="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-12 pl-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        <div className="flex items-center gap-3">
+          <div className="flex gap-2">
+            <button 
+              onClick={exportExcel}
+              className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition shadow-lg"
+            >
+              <TableIcon size={18} /> Excel
+            </button>
+            <button 
+              onClick={exportPDF}
+              className="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-red-700 transition shadow-lg"
+            >
+              <FileText size={18} /> PDF
+            </button>
+          </div>
+          <div className="relative w-full md:w-96">
+            <Search className="absolute right-4 top-3.5 text-slate-400" size={20} />
+            <input
+              type="text"
+              placeholder="ابحث برقم الهاتف أو اسم العميل..."
+              className="w-full bg-white border border-slate-200 rounded-2xl py-3 pr-12 pl-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+      <div id="deferred-table" className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-right" dir="rtl">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 text-sm">

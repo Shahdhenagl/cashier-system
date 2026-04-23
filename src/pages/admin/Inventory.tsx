@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useStore, type Product } from '../../store/useStore';
-import { Plus, Edit2, Trash2, Search, X, Tag } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, Tag, FileText, Table as TableIcon } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function Inventory() {
   const { products, categories, storeSettings, addProduct, deleteProduct, updateProduct } = useStore();
@@ -122,6 +125,39 @@ export default function Inventory() {
     });
   };
 
+  const exportExcel = () => {
+    const wsData = [
+      ['تقرير المخزون والمنتجات', '', '', '', '', ''],
+      ['التاريخ', new Date().toLocaleDateString(), '', '', '', ''],
+      [''],
+      ['الباركود', 'اسم المنتج', 'التصنيف', 'سعر الشراء', 'سعر البيع', 'المخزون'],
+      ...filteredProducts.map(p => [
+        p.barcode,
+        p.name,
+        categories.find(c => c.id === p.category_id)?.name || '',
+        p.purchase_price,
+        p.sale_price,
+        p.stock_quantity
+      ])
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventory');
+    XLSX.writeFile(wb, `inventory_report_${new Date().toLocaleDateString()}.xlsx`);
+  };
+
+  const exportPDF = async () => {
+    const element = document.getElementById('inventory-table');
+    if (!element) return;
+    const canvas = await html2canvas(element, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`inventory_report_${new Date().toLocaleDateString()}.pdf`);
+  };
+
   return (
     <div className="p-8 relative">
       
@@ -240,13 +276,29 @@ export default function Inventory() {
         <div>
           <h2 className="text-xl font-black text-slate-800">المنتجات</h2>
         </div>
-        <button onClick={openAddModal} style={{ backgroundColor: storeSettings.themeColor }} className="text-white px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 shadow-lg">
-          <Plus size={20} />
-          إضافة منتج
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex gap-2">
+            <button 
+              onClick={exportExcel}
+              className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-emerald-700 transition text-sm"
+            >
+              <TableIcon size={16} /> Excel
+            </button>
+            <button 
+              onClick={exportPDF}
+              className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition text-sm"
+            >
+              <FileText size={16} /> PDF
+            </button>
+          </div>
+          <button onClick={openAddModal} style={{ backgroundColor: storeSettings.themeColor }} className="text-white px-6 py-3 rounded-xl font-bold transition flex items-center gap-2 shadow-lg">
+            <Plus size={20} />
+            إضافة منتج
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col min-h-[500px]">
+      <div id="inventory-table" className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col min-h-[500px]">
         <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
           <div className="relative w-1/3 min-w-[300px]">
             <Search className="absolute right-4 top-3 text-slate-400" size={20} />

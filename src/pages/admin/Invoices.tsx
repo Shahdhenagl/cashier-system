@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react';
-// Updated finances logic to account for returns in debt calculation
 import { useStore } from '../../store/useStore';
-import { ArrowRightLeft, Search, User, Printer, CreditCard } from 'lucide-react';
+import { ArrowRightLeft, Search, User, Printer, CreditCard, FileText, Table as TableIcon } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function Invoices() {
   const { orders, storeSettings } = useStore();
@@ -117,6 +119,44 @@ export default function Invoices() {
     return Array.from(y).sort((a, b) => parseInt(b) - parseInt(a));
   }, [orders]);
 
+  const exportExcel = () => {
+    const wsData = [
+      ['تقرير الفواتير', '', '', '', '', '', '', ''],
+      ['التاريخ', new Date().toLocaleDateString(), '', '', '', '', '', ''],
+      [''],
+      ['رقم الفاتورة', 'العميل', 'التاريخ', 'الإجمالي', 'المرتجع', 'المدفوع', 'الباقي', 'النوع'],
+      ...filteredOrders.map(o => {
+        const returnedValue = o.items.reduce((sum, i) => sum + (i.returned_quantity * i.sale_price), 0);
+        return [
+          o.id,
+          o.customer?.name || 'عميل نقدي',
+          new Date(o.date).toLocaleString('ar-SA'),
+          o.total,
+          returnedValue,
+          o.paid_amount,
+          o.type === 'payment' ? 0 : Math.max(0, (o.total - returnedValue) - o.paid_amount),
+          o.type === 'payment' ? 'سداد' : 'بيع'
+        ];
+      })
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Invoices');
+    XLSX.writeFile(wb, `invoices_report_${new Date().toLocaleDateString()}.xlsx`);
+  };
+
+  const exportPDF = async () => {
+    const element = document.getElementById('invoices-table');
+    if (!element) return;
+    const canvas = await html2canvas(element, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`invoices_report_${new Date().toLocaleDateString()}.pdf`);
+  };
+
   const filteredOrders = useMemo(() => {
     return orders.filter(o => {
       const orderDate = new Date(o.date);
@@ -141,9 +181,23 @@ export default function Invoices() {
           <h1 className="text-3xl font-black text-slate-800">الفواتير والمرتجعات</h1>
           <p className="text-slate-500 mt-2">مراجعة الفواتير وعمليات الاسترجاع مع الفلاتر المتقدمة</p>
         </div>
+        <div className="flex gap-2">
+          <button 
+            onClick={exportExcel}
+            className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-700 transition shadow-lg"
+          >
+            <TableIcon size={18} /> Excel
+          </button>
+          <button 
+            onClick={exportPDF}
+            className="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-red-700 transition shadow-lg"
+          >
+            <FileText size={18} /> PDF
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col min-h-[500px]">
+      <div id="invoices-table" className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col min-h-[500px]">
         {/* Advanced Filters */}
         <div className="p-5 border-b border-slate-100 bg-slate-50 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
           <div className="relative md:col-span-2">
