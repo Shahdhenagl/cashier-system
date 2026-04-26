@@ -142,7 +142,7 @@ export const useStore = create<CashierStore>((set, get) => ({
   loadAll: async () => {
     set({ isLoading: true, dbError: null });
     try {
-      const [settingsRes, categoriesRes, productsRes, customersRes, ordersRes, counterRes, expensesRes] =
+      const [settingsRes, categoriesRes, productsRes, customersRes, ordersRes, counterRes] =
         await Promise.all([
           supabase.from('store_settings').select('*').limit(1).maybeSingle(),
           supabase.from('categories').select('*').order('name'),
@@ -154,7 +154,6 @@ export const useStore = create<CashierStore>((set, get) => ({
             .order('created_at', { ascending: false })
             .limit(200),
           supabase.from('invoice_counter').select('current_value').limit(1).maybeSingle(),
-          supabase.from('expenses').select('*').order('created_at', { ascending: false }),
         ]);
 
       const settings = settingsRes.data ? mapSettings(settingsRes.data as Record<string, unknown>) : get().storeSettings;
@@ -198,23 +197,35 @@ export const useStore = create<CashierStore>((set, get) => ({
 
       const counter = (counterRes.data as Record<string, unknown> | null)?.current_value as number ?? 1;
 
-      set({
+        set({
         storeSettings: settings,
         categories: (categoriesRes.data ?? []) as Category[],
         products: (productsRes.data ?? []) as unknown as Product[],
         customers,
         orders,
-        expenses: ((expensesRes?.data ?? []) as any[]).map(e => ({
-          id: e.id,
-          category: e.category,
-          amount: e.amount,
-          note: e.note,
-          date: e.created_at
-        })),
+        expenses: [], // Default to empty
         invoiceCounter: counter,
         activeInvoiceId: counter.toString(),
         isLoading: false,
       });
+
+      // Fetch expenses separately to avoid breaking the whole loadAll if the table is missing
+      try {
+        const { data: expData } = await supabase.from('expenses').select('*').order('created_at', { ascending: false });
+        if (expData) {
+          set({
+            expenses: (expData as any[]).map(e => ({
+              id: e.id,
+              category: e.category,
+              amount: e.amount,
+              note: e.note,
+              date: e.created_at
+            }))
+          });
+        }
+      } catch (e) {
+        console.error("Expenses table might not exist yet:", e);
+      }
 
       // Sync settings across tabs
       const bc = new BroadcastChannel('cashier-sync');
