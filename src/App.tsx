@@ -1,3 +1,4 @@
+// Vercel Rebuild Trigger: Finance Module Implementation
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import POS from './pages/POS';
