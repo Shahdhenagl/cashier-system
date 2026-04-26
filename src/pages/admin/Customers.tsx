@@ -19,10 +19,12 @@ export default function Customers() {
     const customerOrders = orders.filter(o => o.customer?.id === customerId);
     const invoiceIds = customerOrders.map(o => o.id);
     
+    // Total returns (always positive)
     const totalReturns = customerOrders.reduce((sum, o) => {
       return sum + o.items.reduce((iSum, item) => iSum + (item.returned_quantity * item.sale_price), 0);
     }, 0);
 
+    // Net Purchases = Sum of Sales Totals - Returns
     const totalSpent = customerOrders.reduce((sum, o) => {
       if (o.type === 'payment') return sum;
       return sum + o.total;
@@ -36,9 +38,9 @@ export default function Customers() {
       }, 0);
     }, 0);
 
+    // Debt = Original Total - Amount Paid (Ignoring returns because they are refunded in cash)
     const totalDebt = customerOrders.reduce((sum, o) => {
-      const returnedValue = o.items.reduce((rSum, item) => rSum + (item.returned_quantity * item.sale_price), 0);
-      return sum + ((o.total - returnedValue) - o.paid_amount);
+      return sum + (o.total - o.paid_amount);
     }, 0);
 
     return { customerOrders, invoiceIds, totalSpent, totalProfit, totalDebt, totalReturns };
@@ -103,8 +105,6 @@ export default function Customers() {
   const handlePrintInvoice = (order: any) => {
     const printDate = new Date(order.date).toLocaleString('ar-SA');
     const isPayment = order.type === 'payment';
-    // Removed unused variables
-    // Removed unused taxValue
     
     let itemsHtml = '';
     if (isPayment) {
@@ -224,7 +224,7 @@ export default function Customers() {
                 <th className="p-5">العميل</th>
                 <th className="p-5">رقم الهاتف</th>
                 <th className="p-5 text-center">الطلبات</th>
-                <th className="p-5 text-center">إجمالي المشتريات</th>
+                <th className="p-5 text-center">صافي المشتريات</th>
                 <th className="p-5 text-center">المرتجعات</th>
                 <th className="p-5 text-center">المديونية</th>
                 <th className="p-5 text-center">تاريخ التسجيل</th>
@@ -277,7 +277,7 @@ export default function Customers() {
                             {Math.abs(totalDebt).toLocaleString()} <span className="text-[10px] font-normal">له رصيد</span>
                           </span>
                         ) : (
-                          <span className="text-slate-300 font-bold">-</span>
+                          <span className="text-emerald-500 font-bold">مدفوع</span>
                         )}
                       </td>
                       <td className="p-5 text-center text-slate-500 font-medium">
@@ -410,7 +410,8 @@ export default function Customers() {
                       selectedCustomer.customerOrders.map((order: any) => {
                         const returnedValue = order.items.reduce((sum: number, i: any) => sum + (i.returned_quantity * i.sale_price), 0);
                         const netTotal = order.total - returnedValue;
-                        const isDebt = netTotal > order.paid_amount;
+                        const rowDebt = order.total - order.paid_amount;
+                        const isDebt = rowDebt > 0;
                         const isPayment = order.type === 'payment';
                         
                         return (
@@ -430,10 +431,10 @@ export default function Customers() {
                               {isPayment ? (
                                 <span className="text-indigo-500 text-[10px] font-bold">مكتمل</span>
                               ) : isDebt ? (
-                                <span className="text-red-500 text-[10px] font-bold flex items-center justify-center gap-1">
+                                <span className="text-red-500 text-[10px] font-bold">
                                   غير مكتملة
                                 </span>
-                              ) : netTotal < order.paid_amount ? (
+                              ) : rowDebt < 0 ? (
                                 <span className="text-emerald-600 text-[10px] font-bold">دفع زائد</span>
                               ) : (
                                 <span className="text-emerald-500 text-[10px] font-bold">مدفوعة بالكامل</span>
