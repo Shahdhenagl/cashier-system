@@ -189,22 +189,28 @@ ${customerBlock}
   const currentPaid = paidAmountStr === '' ? total : parseFloat(paidAmountStr) || 0;
   const remaining = total - currentPaid;
 
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const phone = e.target.value;
-    setCustomerPhone(phone);
-    const existingCust = customers.find(c => c.phone === phone);
+  // Sync customer info and debt calculation
+  useEffect(() => {
+    if (!customerPhone) {
+      setCustomerDebt(0);
+      return;
+    }
+    const existingCust = customers.find(c => c.phone === customerPhone);
     if (existingCust) {
       setCustomerName(existingCust.name);
-      
       const cOrders = orders.filter(o => o.customer?.id === existingCust.id);
       const cDebt = cOrders.reduce((sum, o) => {
-        const returnedValue = o.items.reduce((rSum, item) => rSum + (item.returned_quantity * item.sale_price), 0);
-        return sum + ((o.total - returnedValue) - o.paid_amount);
+        // Debt = Original Total - Amount Paid (Ignoring returns per user request)
+        return sum + (o.total - o.paid_amount);
       }, 0);
       setCustomerDebt(cDebt > 0 ? cDebt : 0);
     } else {
       setCustomerDebt(0);
     }
+  }, [customerPhone, orders, customers]);
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCustomerPhone(e.target.value);
   };
 
   return (
