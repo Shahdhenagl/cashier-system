@@ -13,7 +13,8 @@ create table if not exists store_settings (
   theme_color text default '#4f46e5',
   address text default '',
   phone text default '',
-  phone2 text default ''
+  phone2 text default '',
+  whatsapp_country_code text default '2'
 );
 
 -- إدخال صف الإعدادات الافتراضي
