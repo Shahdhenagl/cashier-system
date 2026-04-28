@@ -66,13 +66,14 @@ export default function Analytics() {
     orders.forEach(order => {
       if (order.type === 'payment') return; // Skip payments for sales analytics
 
-      revenue += order.total;
+      let netOrderTotal = 0;
       
       order.items.forEach((item: any) => {
         const qty = item.quantity - item.returned_quantity;
         const itemRevenue = item.sale_price * qty;
-        const itemCost = item.purchase_price * qty;
+        const itemCost = item.average_purchase_price * qty; // Note: using average_purchase_price here for Branch 1
         cost += itemCost;
+        netOrderTotal += itemRevenue;
 
         if (!productsMap[item.id]) {
           productsMap[item.id] = { name: item.name, qty: 0, profit: 0, revenue: 0 };
@@ -82,11 +83,13 @@ export default function Analytics() {
         productsMap[item.id].profit += (itemRevenue - itemCost);
       });
 
+      revenue += netOrderTotal;
+
       if (order.customer) {
         if (!customersMap[order.customer.id]) {
           customersMap[order.customer.id] = { name: order.customer.name, total: 0, orders: 0 };
         }
-        customersMap[order.customer.id].total += order.total;
+        customersMap[order.customer.id].total += netOrderTotal;
         customersMap[order.customer.id].orders += 1;
       }
     });
