@@ -17,6 +17,7 @@ export default function Inventory() {
     name: '',
     barcode: '',
     purchase_price: 0,
+    average_purchase_price: 0,
     sale_price: 0,
     stock_quantity: 0,
     category_id: categories[0]?.id || ''
@@ -80,6 +81,7 @@ export default function Inventory() {
       name: product.name,
       barcode: product.barcode || '',
       purchase_price: product.purchase_price,
+      average_purchase_price: product.average_purchase_price || product.purchase_price,
       sale_price: product.sale_price,
       stock_quantity: product.stock_quantity,
       category_id: product.category_id
@@ -93,6 +95,7 @@ export default function Inventory() {
       name: '',
       barcode: '',
       purchase_price: 0,
+      average_purchase_price: 0,
       sale_price: 0,
       stock_quantity: 0,
       category_id: categories[0]?.id || ''
@@ -119,6 +122,7 @@ export default function Inventory() {
       name: '',
       barcode: '',
       purchase_price: 0,
+      average_purchase_price: 0,
       sale_price: 0,
       stock_quantity: 0,
       category_id: categories[0]?.id || ''
@@ -136,6 +140,7 @@ export default function Inventory() {
         p.name,
         categories.find(c => c.id === p.category_id)?.name || '',
         p.purchase_price,
+        p.average_purchase_price,
         p.sale_price,
         p.stock_quantity
       ])
@@ -182,8 +187,12 @@ export default function Inventory() {
                   <input type="text" required dir="ltr" value={formData.barcode} onChange={e => setFormData({...formData, barcode: e.target.value})} style={{ '--tw-ring-color': storeSettings.themeColor + '40' } as any} className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:outline-none text-left" />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">سعر الشراء</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">سعر الشراء الحالي</label>
                   <input type="number" min="0" step="0.01" required value={formData.purchase_price} onChange={e => setFormData({...formData, purchase_price: parseFloat(e.target.value) || 0})} style={{ '--tw-ring-color': storeSettings.themeColor + '40' } as any} className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">متوسط سعر الشراء</label>
+                  <input type="number" min="0" step="0.01" value={formData.average_purchase_price} onChange={e => setFormData({...formData, average_purchase_price: parseFloat(e.target.value) || 0})} style={{ '--tw-ring-color': storeSettings.themeColor + '40' } as any} className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:outline-none border-l-4 border-l-indigo-500" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">سعر البيع</label>
@@ -324,6 +333,7 @@ export default function Inventory() {
                 <th className="p-4">اسم المنتج</th>
                 <th className="p-4">التصنيف</th>
                 <th className="p-4 text-center">سعر الشراء</th>
+                <th className="p-4 text-center">متوسط الشراء</th>
                 <th className="p-4 text-center border-x border-slate-100 bg-slate-50">سعر البيع</th>
                 <th className="p-4 text-center border-l border-slate-100 bg-slate-50">المخزون المتوفر</th>
                 <th className="p-4 text-center">الإجراءات</th>
@@ -340,6 +350,7 @@ export default function Inventory() {
                     <td className="p-4 font-bold">{product.name}</td>
                     <td className="p-4 text-slate-500">{category}</td>
                     <td className="p-4 text-center">{product.purchase_price} {storeSettings.currency}</td>
+                    <td className="p-4 text-center font-bold text-indigo-600 bg-indigo-50/30">{product.average_purchase_price} {storeSettings.currency}</td>
                     
                     <td className="p-4 text-center border-x border-slate-100 bg-slate-50/50">
                       <button onClick={() => handleEditPrice(product)} style={{ '--hover-color': storeSettings.themeColor } as any} className="flex items-center justify-center gap-2 w-full hover:text-[var(--hover-color)] transition group font-black">

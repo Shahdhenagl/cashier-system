@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore';
 
 export default function AdminLayout() {
   const navigate = useNavigate();
-  const { storeSettings } = useStore();
+  const { storeSettings, logout } = useStore();
 
   const navItems = [
     { name: 'نظرة عامة', path: '/admin/overview', icon: LayoutDashboard },
@@ -16,6 +16,11 @@ export default function AdminLayout() {
     { name: 'الخزينة والمصاريف', path: '/admin/finance', icon: Wallet },
     { name: 'إعدادات النظام', path: '/admin/settings', icon: Settings },
   ];
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900" dir="rtl">
@@ -53,7 +58,7 @@ export default function AdminLayout() {
 
         <div className="p-4 border-t border-slate-800">
           <button
-            onClick={() => navigate('/')}
+            onClick={handleLogout}
             className="flex items-center gap-2 w-full px-4 py-3 text-red-400 hover:bg-black/20 hover:text-red-300 rounded-xl transition"
           >
             <LogOut size={20} />

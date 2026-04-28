@@ -7,6 +7,7 @@ export interface Product {
   name: string;
   barcode: string;
   purchase_price: number;
+  average_purchase_price: number;
   sale_price: number;
   stock_quantity: number;
   category_id: string;
@@ -98,6 +99,11 @@ interface CashierStore {
   addExpense: (expense: Omit<Expense, 'id' | 'date'>) => Promise<void>;
   updateExpense: (id: string, expense: Partial<Expense>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+
+  // Auth
+  isAdminAuthenticated: boolean;
+  login: (pin: string) => boolean;
+  logout: () => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -138,6 +144,21 @@ export const useStore = create<CashierStore>((set, get) => ({
   activeInvoiceId: '1',
   isLoading: false,
   dbError: null,
+  isAdminAuthenticated: !!sessionStorage.getItem('cashier_admin_auth'),
+
+  login: (pin: string) => {
+    if (pin === '1234') {
+      sessionStorage.setItem('cashier_admin_auth', 'true');
+      set({ isAdminAuthenticated: true });
+      return true;
+    }
+    return false;
+  },
+
+  logout: () => {
+    sessionStorage.removeItem('cashier_admin_auth');
+    set({ isAdminAuthenticated: false });
+  },
 
   // ── Load all data from Supabase ────────────────────────────
   loadAll: async () => {
@@ -201,7 +222,10 @@ export const useStore = create<CashierStore>((set, get) => ({
         set({
         storeSettings: settings,
         categories: (categoriesRes.data ?? []) as Category[],
-        products: (productsRes.data ?? []) as unknown as Product[],
+        products: (productsRes.data ?? []).map((p: any) => ({
+          ...p,
+          average_purchase_price: p.average_purchase_price ?? p.purchase_price ?? 0
+        })) as Product[],
         customers,
         orders,
         expenses: [], // Default to empty
@@ -560,7 +584,7 @@ export const useStore = create<CashierStore>((set, get) => ({
     }
   },
 
-  deleteExpense: async (id) => {
+  deleteExpense: async (id: string) => {
     await supabase.from('expenses').delete().eq('id', id);
     set((state) => ({ expenses: state.expenses.filter((e) => e.id !== id) }));
   },

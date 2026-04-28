@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
+import { useStore } from '../store/useStore';
 
 export default function Login() {
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
   const navigate = useNavigate();
+  const { login } = useStore();
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pin === '1111') {
+    if (login(pin)) {
       navigate('/admin/overview');
     } else {
       setError(true);

@@ -72,6 +72,14 @@ function ThemeInjector() {
 }
 
 
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAdminAuthenticated } = useStore();
+  if (!isAdminAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+}
+
 function App() {
   const { loadAll, loadSettingsOnly, isLoading, dbError } = useStore();
 
@@ -117,7 +125,14 @@ function App() {
         <Routes>
           <Route path="/" element={<POS />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/admin" element={<AdminLayout />}>
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedRoute>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route index element={<Navigate to="overview" replace />} />
             <Route path="overview" element={<Overview />} />
             <Route path="analytics" element={<Analytics />} />

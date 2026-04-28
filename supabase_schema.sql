@@ -38,6 +38,7 @@ create table if not exists products (
   name text not null,
   barcode text unique,
   purchase_price numeric default 0,
+  average_purchase_price numeric default 0,
   sale_price numeric default 0,
   stock_quantity integer default 0,
   category_id uuid references categories(id) on delete set null,
