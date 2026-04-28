@@ -58,6 +58,8 @@ create table if not exists customers (
 create table if not exists orders (
   id text primary key,
   total numeric not null default 0,
+  paid_amount numeric default 0,
+  type text default 'sale',
   customer_id uuid references customers(id) on delete set null,
   created_at timestamptz default now()
 );
@@ -83,6 +85,15 @@ create table if not exists order_items (
   sale_price numeric default 0
 );
 
+-- جدول المصروفات
+create table if not exists expenses (
+  id uuid default gen_random_uuid() primary key,
+  category text not null,
+  amount numeric not null default 0,
+  note text,
+  created_at timestamptz default now()
+);
+
 -- ============================================================
 -- تفعيل RLS (Row Level Security)
 -- ============================================================
@@ -93,6 +104,7 @@ alter table customers enable row level security;
 alter table orders enable row level security;
 alter table order_items enable row level security;
 alter table invoice_counter enable row level security;
+alter table expenses enable row level security;
 
 -- سياسة مفتوحة مؤقتاً (عدّلها لاحقاً عند إضافة Auth)
 create policy "allow all" on store_settings for all using (true) with check (true);
@@ -102,3 +114,4 @@ create policy "allow all" on customers for all using (true) with check (true);
 create policy "allow all" on orders for all using (true) with check (true);
 create policy "allow all" on order_items for all using (true) with check (true);
 create policy "allow all" on invoice_counter for all using (true) with check (true);
+create policy "allow all" on expenses for all using (true) with check (true);
