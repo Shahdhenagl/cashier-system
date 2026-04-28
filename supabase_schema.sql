@@ -82,7 +82,8 @@ create table if not exists order_items (
   barcode text,
   quantity integer default 1,
   returned_quantity integer default 0,
-  sale_price numeric default 0
+  sale_price numeric default 0,
+  purchase_price numeric default 0
 );
 
 -- جدول المصروفات

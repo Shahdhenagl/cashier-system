@@ -196,8 +196,8 @@ export const useStore = create<CashierStore>((set, get) => ({
             id: (i.product_id as string) ?? (i.id as string),
             name: (i.product_name as string) ?? (prod.name as string) ?? '',
             barcode: (prod.barcode as string) ?? '',
-            purchase_price: (prod.purchase_price as number) ?? 0,
-            average_purchase_price: (prod.average_purchase_price as number) ?? (prod.purchase_price as number) ?? 0,
+            purchase_price: (i.purchase_price as number) ?? (prod.average_purchase_price as number) ?? (prod.purchase_price as number) ?? 0,
+            average_purchase_price: (i.purchase_price as number) ?? (prod.average_purchase_price as number) ?? (prod.purchase_price as number) ?? 0,
             sale_price: i.sale_price as number,
             stock_quantity: (prod.stock_quantity as number) ?? 0,
             category_id: (prod.category_id as string) ?? '',
@@ -358,6 +358,7 @@ export const useStore = create<CashierStore>((set, get) => ({
       quantity: item.quantity,
       returned_quantity: 0,
       sale_price: item.sale_price,
+      purchase_price: item.average_purchase_price || item.purchase_price,
     }));
     const { error: itemsError } = await supabase.from('order_items').insert(itemsPayload);
     if (itemsError) {
@@ -485,8 +486,8 @@ export const useStore = create<CashierStore>((set, get) => ({
           id: (i.product_id as string) ?? (i.id as string),
           name: (i.product_name as string) ?? (prod.name as string) ?? '',
           barcode: (prod.barcode as string) ?? '',
-          purchase_price: (prod.purchase_price as number) ?? 0,
-          average_purchase_price: (prod.average_purchase_price as number) ?? (prod.purchase_price as number) ?? 0,
+          purchase_price: (i.purchase_price as number) ?? (prod.average_purchase_price as number) ?? (prod.purchase_price as number) ?? 0,
+          average_purchase_price: (i.purchase_price as number) ?? (prod.average_purchase_price as number) ?? (prod.purchase_price as number) ?? 0,
           sale_price: i.sale_price as number,
           stock_quantity: (prod.stock_quantity as number) ?? 0,
           category_id: (prod.category_id as string) ?? '',
