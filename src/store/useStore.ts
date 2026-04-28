@@ -522,7 +522,14 @@ export const useStore = create<CashierStore>((set, get) => ({
     if (newSettings.phone2 !== undefined) mapped.phone2 = newSettings.phone2;
     if (newSettings.whatsappCountryCode !== undefined) mapped.whatsapp_country_code = newSettings.whatsappCountryCode;
 
-    await supabase.from('store_settings').update(mapped).eq('id', (await supabase.from('store_settings').select('id').limit(1).maybeSingle()).data?.id);
+    const { data: existing } = await supabase.from('store_settings').select('id').limit(1).maybeSingle();
+    
+    if (existing?.id) {
+      await supabase.from('store_settings').update(mapped).eq('id', existing.id);
+    } else {
+      await supabase.from('store_settings').insert(mapped);
+    }
+    
     set((state) => ({ storeSettings: { ...state.storeSettings, ...newSettings } }));
     new BroadcastChannel('cashier-sync').postMessage('sync_settings');
   },
