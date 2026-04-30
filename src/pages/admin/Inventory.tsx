@@ -179,30 +179,19 @@ export default function Inventory() {
             <form onSubmit={submitProduct} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-sm font-bold text-slate-700 mb-1">اسم المنتج</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">اسم المنتج <span className="text-red-500">*</span></label>
                   <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ '--tw-ring-color': storeSettings.themeColor + '40' } as any} className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:outline-none" />
                 </div>
                 <div className="col-span-2">
                   <label className="block text-sm font-bold text-slate-700 mb-1">الباركود</label>
-                  <input type="text" required dir="ltr" value={formData.barcode} onChange={e => setFormData({...formData, barcode: e.target.value})} style={{ '--tw-ring-color': storeSettings.themeColor + '40' } as any} className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:outline-none text-left" />
+                  <input type="text" dir="ltr" value={formData.barcode} onChange={e => setFormData({...formData, barcode: e.target.value})} style={{ '--tw-ring-color': storeSettings.themeColor + '40' } as any} className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:outline-none text-left" />
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">سعر الشراء الحالي</label>
-                  <input type="number" min="0" step="0.01" required value={formData.purchase_price} onChange={e => setFormData({...formData, purchase_price: parseFloat(e.target.value) || 0})} style={{ '--tw-ring-color': storeSettings.themeColor + '40' } as any} className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:outline-none" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">متوسط سعر الشراء</label>
-                  <input type="number" min="0" step="0.01" value={formData.average_purchase_price} onChange={e => setFormData({...formData, average_purchase_price: parseFloat(e.target.value) || 0})} style={{ '--tw-ring-color': storeSettings.themeColor + '40' } as any} className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:outline-none border-l-4 border-l-indigo-500" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">سعر البيع</label>
+                <div className="col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-1">سعر البيع الافتراضي <span className="text-red-500">*</span></label>
                   <input type="number" min="0" step="0.01" required value={formData.sale_price} onChange={e => setFormData({...formData, sale_price: parseFloat(e.target.value) || 0})} style={{ '--tw-ring-color': storeSettings.themeColor + '40' } as any} className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:outline-none border-l-4 border-l-green-500" />
+                  <p className="text-xs text-slate-400 mt-1">ℹ️ يمكن تعديل سعر البيع لاحقاً — السعر والمخزون يُحددان تلقائياً عبر فواتير المشتريات</p>
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">الكمية الافتتاحية للمخزون</label>
-                  <input type="number" min="0" required value={formData.stock_quantity} onChange={e => setFormData({...formData, stock_quantity: parseInt(e.target.value) || 0})} className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:ring-indigo-500" />
-                </div>
-                <div>
+                <div className="col-span-2">
                   <label className="block text-sm font-bold text-slate-700 mb-1">التصنيف</label>
                   <select value={formData.category_id} onChange={e => setFormData({...formData, category_id: e.target.value})} className="w-full bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl focus:ring-2 focus:ring-indigo-500">
                     {categories.map(c => (

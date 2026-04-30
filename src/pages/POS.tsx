@@ -126,6 +126,10 @@ ${customerBlock}
   <div class="total-row"><span>المجموع الفرعي:</span><span>${orderDetails.subtotal.toFixed(2)} ${currentSettings.currency}</span></div>
   <div class="total-row"><span>الضريبة (${currentSettings.taxRate}%):</span><span>${orderDetails.tax.toFixed(2)} ${currentSettings.currency}</span></div>
   <div class="total-row grand-total"><span>الإجمالي:</span><span>${orderDetails.total.toFixed(2)} ${currentSettings.currency}</span></div>
+  ${(orderDetails.paidAmount !== undefined && orderDetails.paidAmount < orderDetails.total) ? `
+  <div class="total-row" style="color:#16a34a;font-weight:700;margin-top:6px;"><span>✓ تم دفع:</span><span>${(orderDetails.paidAmount || 0).toFixed(2)} ${currentSettings.currency}</span></div>
+  <div class="total-row" style="color:#dc2626;font-weight:900;font-size:15px;border-top:2px dashed #dc2626;padding-top:8px;margin-top:4px;"><span>⚠️ المتبقي (آجل):</span><span>${(orderDetails.total - (orderDetails.paidAmount || 0)).toFixed(2)} ${currentSettings.currency}</span></div>
+  ` : `<div class="total-row" style="color:#16a34a;font-weight:700;margin-top:4px;"><span>✓ تم السداد كاملاً</span><span></span></div>`}
 </div>
 <div class="footer">شكراً لتعاملكم ♥</div>
 <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
@@ -157,6 +161,7 @@ ${customerBlock}
       subtotal: currentSubtotal,
       tax: currentTax,
       total: currentTotal,
+      paidAmount: finalPaidAmount,
       customerName: currentCustomerName,
       customerPhone: currentCustomerPhone
     };
@@ -459,25 +464,40 @@ ${customerBlock}
             {filteredProducts.map((product) => {
               const isOutOfStock = product.stock_quantity <= 0;
               const isLowStock = product.stock_quantity > 0 && product.stock_quantity < 5;
+              const avgPrice = product.average_purchase_price || product.purchase_price || 0;
+              const lastPrice = product.purchase_price || 0;
               
               return (
                 <div
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className={`bg-white dark:bg-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-xl cursor-pointer transition-all duration-300 transform hover:-translate-y-1 flex flex-col justify-between h-48 border border-gray-100 dark:border-slate-700 ring-1 ring-black/5 dark:ring-white/5 relative overflow-hidden group ${isOutOfStock ? 'opacity-60 cursor-not-allowed grayscale' : ''}`}
+                  className={`bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-sm hover:shadow-xl cursor-pointer transition-all duration-300 transform hover:-translate-y-1 flex flex-col justify-between border border-gray-100 dark:border-slate-700 ring-1 ring-black/5 dark:ring-white/5 relative overflow-hidden group ${isOutOfStock ? 'opacity-60 cursor-not-allowed grayscale' : ''}`}
                 >
-                  <div className={`absolute top-0 right-0 rounded-bl-3xl rounded-tr-xl px-4 py-1.5 text-xs font-bold text-white shadow-sm transition-colors ${isOutOfStock ? 'bg-slate-500' : isLowStock ? 'bg-red-500' : 'bg-green-500 dark:bg-green-600 group-hover:bg-green-600'}`}>
-                    {isOutOfStock ? 'نفذت الكمية' : `المخزون: ${product.stock_quantity}`}
+                  <div className={`absolute top-0 right-0 rounded-bl-3xl rounded-tr-xl px-3 py-1 text-xs font-bold text-white shadow-sm transition-colors ${isOutOfStock ? 'bg-slate-500' : isLowStock ? 'bg-red-500' : 'bg-green-500 dark:bg-green-600'}`}>
+                    {isOutOfStock ? 'نفذت' : `${product.stock_quantity} قطعة`}
                   </div>
 
-                  <div className="pt-3">
-                    <h3 className="font-bold text-gray-800 dark:text-gray-100 line-clamp-2 leading-tight text-lg">{product.name}</h3>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 font-mono">{product.barcode}</p>
+                  <div className="pt-2">
+                    <h3 className="font-bold text-gray-800 dark:text-gray-100 line-clamp-2 leading-tight text-base">{product.name}</h3>
+                    {/* Purchase cost info for cashier */}
+                    <div className="mt-2 space-y-0.5">
+                      <div className="flex items-center gap-1.5 text-[11px]">
+                        <span className="text-slate-400 font-medium">آخر شراء:</span>
+                        <span className="font-bold text-orange-500">{lastPrice.toFixed(2)} {storeSettings.currency}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[11px]">
+                        <span className="text-slate-400 font-medium">متوسط:</span>
+                        <span className="font-bold text-indigo-500">{avgPrice.toFixed(2)} {storeSettings.currency}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-end justify-between mt-4">
-                    <span style={{ color: storeSettings.themeColor }} className="text-xl font-black dark:opacity-90">{product.sale_price} <span className="text-sm text-gray-500 dark:text-gray-400">{storeSettings.currency}</span></span>
-                    <div style={!isOutOfStock ? { backgroundColor: storeSettings.themeColor + '15', color: storeSettings.themeColor, borderColor: storeSettings.themeColor + '30' } : {}} className={`w-10 h-10 rounded-2xl flex items-center justify-center border transition-all ${isOutOfStock ? 'bg-gray-100 text-gray-400 border-gray-200 dark:bg-slate-700 dark:border-slate-600' : ''}`}>
-                      <Plus size={20} strokeWidth={3}/>
+                  <div className="flex items-end justify-between mt-3 pt-2 border-t border-gray-100 dark:border-slate-700">
+                    <div>
+                      <p className="text-[10px] text-slate-400 font-medium mb-0.5">سعر البيع</p>
+                      <span style={{ color: storeSettings.themeColor }} className="text-lg font-black dark:opacity-90">{product.sale_price} <span className="text-xs text-gray-500 dark:text-gray-400">{storeSettings.currency}</span></span>
+                    </div>
+                    <div style={!isOutOfStock ? { backgroundColor: storeSettings.themeColor + '15', color: storeSettings.themeColor, borderColor: storeSettings.themeColor + '30' } : {}} className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all ${isOutOfStock ? 'bg-gray-100 text-gray-400 border-gray-200 dark:bg-slate-700 dark:border-slate-600' : ''}`}>
+                      <Plus size={18} strokeWidth={3}/>
                     </div>
                   </div>
                 </div>
