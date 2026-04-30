@@ -30,6 +30,31 @@ export interface Customer {
   timestamp: string;
 }
 
+export interface Supplier {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+  created_at: string;
+}
+
+export interface PurchaseItem {
+  id?: string;
+  product_id: string;
+  quantity: number;
+  purchase_price: number;
+}
+
+export interface PurchaseInvoice {
+  id: string;
+  invoice_number: string;
+  supplier_id: string;
+  total: number;
+  paid_amount: number;
+  created_at: string;
+  items?: PurchaseItem[];
+}
+
 export interface Order {
   id: string;
   items: OrderItem[];
@@ -66,9 +91,11 @@ interface CashierStore {
   products: Product[];
   categories: Category[];
   customers: Customer[];
+  suppliers: Supplier[];
   cart: OrderItem[];
   orders: Order[];
   expenses: Expense[];
+  purchaseInvoices: PurchaseInvoice[];
   invoiceCounter: number;
   activeInvoiceId: string;
   isLoading: boolean;
@@ -99,6 +126,15 @@ interface CashierStore {
   addExpense: (expense: Omit<Expense, 'id' | 'date'>) => Promise<void>;
   updateExpense: (id: string, expense: Partial<Expense>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+
+  // Suppliers
+  addSupplier: (supplier: Omit<Supplier, 'id' | 'created_at'>) => Promise<void>;
+  updateSupplier: (id: string, supplier: Partial<Supplier>) => Promise<void>;
+  deleteSupplier: (id: string) => Promise<void>;
+
+  // Purchases
+  loadPurchaseInvoices: () => Promise<void>;
+  addPurchaseInvoice: (invoice: Omit<PurchaseInvoice, 'id' | 'created_at' | 'items'>, items: PurchaseItem[]) => Promise<void>;
 
   // Auth
   isAdminAuthenticated: boolean;
@@ -137,9 +173,11 @@ export const useStore = create<CashierStore>((set, get) => ({
   products: [],
   categories: [],
   customers: [],
+  suppliers: [],
   cart: [],
   orders: [],
   expenses: [],
+  purchaseInvoices: [],
   invoiceCounter: 1,
   activeInvoiceId: '1',
   isLoading: false,
@@ -252,6 +290,22 @@ export const useStore = create<CashierStore>((set, get) => ({
       } catch (e) {
         console.error("Expenses table might not exist yet:", e);
       }
+
+      try {
+        const { data: supData } = await supabase.from('suppliers').select('*').order('created_at', { ascending: false });
+        if (supData) {
+          set({
+            suppliers: (supData as any[]).map(s => ({
+              ...s
+            }))
+          });
+        }
+      } catch (e) {
+        console.error("Suppliers table might not exist yet:", e);
+      }
+
+      // Fetch purchase invoices
+      get().loadPurchaseInvoices();
 
       // Sync settings across tabs
       const bc = new BroadcastChannel('cashier-sync');
@@ -597,5 +651,121 @@ export const useStore = create<CashierStore>((set, get) => ({
   deleteExpense: async (id: string) => {
     await supabase.from('expenses').delete().eq('id', id);
     set((state) => ({ expenses: state.expenses.filter((e) => e.id !== id) }));
+  },
+
+  // ── Suppliers ─────────────────────────────────────────────
+  addSupplier: async (supplier) => {
+    const { data, error } = await supabase.from('suppliers').insert(supplier).select().single();
+    if (error) {
+      console.error("Add Supplier Error:", error);
+      return;
+    }
+    if (data) {
+      set((state) => ({ suppliers: [data as unknown as Supplier, ...state.suppliers] }));
+    }
+  },
+
+  updateSupplier: async (id, updated) => {
+    const { data, error } = await supabase.from('suppliers').update(updated).eq('id', id).select().single();
+    if (error) {
+      console.error("Update Supplier Error:", error);
+      return;
+    }
+    if (data) {
+      set((state) => ({ suppliers: state.suppliers.map((s) => (s.id === id ? { ...s, ...updated } : s)) }));
+    }
+  },
+
+  deleteSupplier: async (id) => {
+    await supabase.from('suppliers').delete().eq('id', id);
+    set((state) => ({ suppliers: state.suppliers.filter((s) => s.id !== id) }));
+  },
+
+  // ── Purchases ─────────────────────────────────────────────
+  loadPurchaseInvoices: async () => {
+    try {
+      const { data } = await supabase.from('purchase_invoices').select('*, purchase_items(*)').order('created_at', { ascending: false });
+      if (data) {
+        set({ purchaseInvoices: data as unknown as PurchaseInvoice[] });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
+  addPurchaseInvoice: async (invoice, items) => {
+    const state = get();
+    // 1. Insert Invoice
+    const { data: invData, error: invError } = await supabase
+      .from('purchase_invoices')
+      .insert({
+        invoice_number: invoice.invoice_number,
+        supplier_id: invoice.supplier_id,
+        total: invoice.total,
+        paid_amount: invoice.paid_amount
+      })
+      .select()
+      .single();
+
+    if (invError || !invData) {
+      console.error("Add Purchase Invoice Error:", invError);
+      return;
+    }
+
+    const newInvoiceId = (invData as any).id;
+
+    // 2. Insert Items
+    const itemsToInsert = items.map(item => ({
+      invoice_id: newInvoiceId,
+      product_id: item.product_id,
+      quantity: item.quantity,
+      purchase_price: item.purchase_price
+    }));
+
+    const { error: itemsError } = await supabase.from('purchase_items').insert(itemsToInsert);
+    if (itemsError) {
+      console.error("Add Purchase Items Error:", itemsError);
+    }
+
+    // 3. Update stock and average price for each product
+    const updatedProducts = [...state.products];
+    for (const item of items) {
+      const productIndex = updatedProducts.findIndex(p => p.id === item.product_id);
+      if (productIndex !== -1) {
+        const product = updatedProducts[productIndex];
+        const oldQty = product.stock_quantity;
+        const oldAvgPrice = product.average_purchase_price || product.purchase_price || 0;
+        
+        const newQty = oldQty + item.quantity;
+        const newTotalValue = (oldQty * oldAvgPrice) + (item.quantity * item.purchase_price);
+        const newAvgPrice = newQty > 0 ? newTotalValue / newQty : 0;
+
+        // Update DB
+        await supabase.from('products').update({
+          stock_quantity: newQty,
+          average_purchase_price: newAvgPrice,
+          purchase_price: item.purchase_price
+        }).eq('id', product.id);
+
+        // Update local state copy
+        updatedProducts[productIndex] = {
+          ...product,
+          stock_quantity: newQty,
+          average_purchase_price: newAvgPrice,
+          purchase_price: item.purchase_price
+        };
+      }
+    }
+
+    // 4. Update local state
+    const completeInvoice: PurchaseInvoice = {
+      ...invData as any,
+      items
+    };
+
+    set({
+      purchaseInvoices: [completeInvoice, ...state.purchaseInvoices],
+      products: updatedProducts
+    });
   },
 }));

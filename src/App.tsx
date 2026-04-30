@@ -8,6 +8,7 @@ import Overview from './pages/admin/Overview';
 import Inventory from './pages/admin/Inventory';
 import Invoices from './pages/admin/Invoices';
 import Customers from './pages/admin/Customers';
+import Suppliers from './pages/admin/Suppliers';
 import DeferredAccounts from './pages/admin/DeferredAccounts';
 import Settings from './pages/admin/Settings';
 import Analytics from './pages/admin/Analytics';
@@ -139,6 +140,7 @@ function App() {
             <Route path="inventory" element={<Inventory />} />
             <Route path="invoices" element={<Invoices />} />
             <Route path="customers" element={<Customers />} />
+            <Route path="suppliers" element={<Suppliers />} />
             <Route path="deferred" element={<DeferredAccounts />} />
             <Route path="finance" element={<Finance />} />
             <Route path="settings" element={<Settings />} />

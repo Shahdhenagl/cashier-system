@@ -54,6 +54,34 @@ create table if not exists customers (
   created_at timestamptz default now()
 );
 
+-- جدول الموردين
+create table if not exists suppliers (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  phone text,
+  address text,
+  created_at timestamptz default now()
+);
+
+-- جدول فواتير المشتريات
+create table if not exists purchase_invoices (
+  id uuid default gen_random_uuid() primary key,
+  invoice_number text not null,
+  supplier_id uuid references suppliers(id) on delete set null,
+  total numeric not null default 0,
+  paid_amount numeric default 0,
+  created_at timestamptz default now()
+);
+
+-- جدول عناصر فواتير المشتريات
+create table if not exists purchase_items (
+  id uuid default gen_random_uuid() primary key,
+  invoice_id uuid references purchase_invoices(id) on delete cascade,
+  product_id uuid references products(id) on delete set null,
+  quantity integer not null default 1,
+  purchase_price numeric not null default 0
+);
+
 -- جدول الفواتير
 create table if not exists orders (
   id text primary key,
@@ -106,6 +134,9 @@ alter table orders enable row level security;
 alter table order_items enable row level security;
 alter table invoice_counter enable row level security;
 alter table expenses enable row level security;
+alter table suppliers enable row level security;
+alter table purchase_invoices enable row level security;
+alter table purchase_items enable row level security;
 
 -- سياسة مفتوحة مؤقتاً (عدّلها لاحقاً عند إضافة Auth)
 create policy "allow all" on store_settings for all using (true) with check (true);
@@ -116,3 +147,6 @@ create policy "allow all" on orders for all using (true) with check (true);
 create policy "allow all" on order_items for all using (true) with check (true);
 create policy "allow all" on invoice_counter for all using (true) with check (true);
 create policy "allow all" on expenses for all using (true) with check (true);
+create policy "allow all" on suppliers for all using (true) with check (true);
+create policy "allow all" on purchase_invoices for all using (true) with check (true);
+create policy "allow all" on purchase_items for all using (true) with check (true);
